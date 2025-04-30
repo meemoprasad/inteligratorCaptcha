@@ -1,0 +1,51 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+#submitButton {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+#submitButton.active {
+  cursor: pointer;
+  opacity: 1;
+}
+
+#popup {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.star-box {
+  position: relative;
+  width: 60%;
+  height: 60%;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,2,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.star {
+  position: absolute;
+  font-size: 30px;
+  color: gold;
+  cursor: pointer;
+}

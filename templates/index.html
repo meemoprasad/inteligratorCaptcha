@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mouse Movement CAPTCHA</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+
+    #submitButton {
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: none;
+      background-color: grey;
+      color: white;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    #submitButton.active {
+      background-color: green;
+      cursor: pointer;
+      opacity: 1;
+    }
+
+    #statusMessage {
+      display: none;
+      margin-top: 1rem;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    #statusMessage.success {
+      background-color: #d4edda;
+      color: #155724;
+    }
+
+    #statusMessage.fail {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Move your mouse or finger randomly over the screen</h2>
+  <p>This helps us verify you're human.</p>
+
+  <div id="statusMessage"></div>
+  <button id="submitButton" onclick="submitReport()" disabled>Submit</button>
+
+  <script>
+    let path = [];
+    let totalDistance = 0;
+    let lastPosition = null;
+    let lastTimestamp = null;
+    let velocityProfile = [];
+    let decisionMade = false;
+
+    const submitButton = document.getElementById("submitButton");
+    const statusMessage = document.getElementById("statusMessage");
+
+    function calculateDistance(x1, y1, x2, y2) {
+      return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    }
+
+    function isHumanLikeMovement() {
+      if (velocityProfile.length < 5) return false;
+
+      const avg = velocityProfile.reduce((a, b) => a + b, 0) / velocityProfile.length;
+      const variance = velocityProfile.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / velocityProfile.length;
+
+      const jitterCount = path.slice(1).filter((pt, i) => {
+        const dx = Math.abs(pt.x - path[i].x);
+        const dy = Math.abs(pt.y - path[i].y);
+        return dx < 2 && dy < 2;
+      }).length;
+
+      return variance > 500 && jitterCount > 5;
+    }
+
+    function showStatusMessage(message, success = true) {
+      statusMessage.innerText = message;
+      statusMessage.className = '';
+      statusMessage.classList.add(success ? 'success' : 'fail');
+      statusMessage.style.display = 'block';
+    }
+
+    function checkHumanStatus() {
+      const validPath = path.length > 20 && totalDistance > 3680;
+      const humanLike = isHumanLikeMovement();
+
+      if (validPath && humanLike && !decisionMade) {
+        showStatusMessage("✅ You are Human!", true);
+        submitButton.classList.add("active");
+        submitButton.disabled = false;
+        decisionMade = true;
+      } else if (path.length > 30 && !humanLike && !decisionMade) {
+        showStatusMessage("❌ You are a Bot!", false);
+        submitButton.classList.remove("active");
+        submitButton.disabled = true;
+        decisionMade = true;
+      }
+    }
+
+    function trackMovement(pos) {
+      const timestamp = Date.now();
+      path.push({ ...pos, time: timestamp });
+
+      if (lastPosition) {
+        const dist = calculateDistance(lastPosition.x, lastPosition.y, pos.x, pos.y);
+        totalDistance += dist;
+
+        if (lastTimestamp !== null) {
+          const deltaTime = (timestamp - lastTimestamp) / 1000;
+          const velocity = dist / deltaTime;
+          velocityProfile.push(velocity);
+        }
+      }
+
+      lastPosition = pos;
+      lastTimestamp = timestamp;
+
+      checkHumanStatus();
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      trackMovement({ x: e.clientX, y: e.clientY });
+    });
+
+    document.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      trackMovement({ x: touch.clientX, y: touch.clientY });
+    });
+
+    function submitReport() {
+      const passed = path.length > 20 && totalDistance > 3680 && isHumanLikeMovement();
+
+      fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passed })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+        if (passed) {
+          window.location.href = "/dashboard";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
